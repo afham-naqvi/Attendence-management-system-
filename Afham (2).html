@@ -1,0 +1,517 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Salary Database Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --dark: #1e293b; --danger: #ef4444; --success: #10b981; --warning: #f59e0b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 10px; display: flex; flex-direction: column; align-items: center; }
+    .wrapper { display: flex; gap: 20px; max-width: 1300px; width: 100%; flex-wrap: wrap; }
+    .main-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); flex: 2; min-width: 350px; }
+    .history-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); flex: 1; min-width: 350px; max-height: 90vh; overflow-y: auto; }
+    .shift-box { background: #f0fdf4; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #bbf7d0; }
+        label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 3px; color: #555; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
+    .table-container { max-height: 500px; overflow-y: auto; border: 1px solid #eee; margin-top: 10px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: var(--dark); color: white; position: sticky; top: 0; padding: 10px; z-index: 10; }
+        td { border-bottom: 1px solid #eee; padding: 8px 5px; text-align: center; }
+    .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin: 15px 0; }
+    .btn { padding: 10px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.3s; text-transform: uppercase; }
+    .btn:hover { opacity: 0.8; }
+        #result { background: #0f172a; color: #10b981; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top:10px; white-space: pre-line; border-left: 5px solid #10b981; }
+    .hist-item { border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; background: #fff; }
+    .hist-actions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+    .owner-name { text-align: center; font-size: 18px; font-weight: bold; color: var(--dark); margin-bottom: 15px; padding: 8px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe; }
+    .rest-active { background-color: #fee2e2!important; }
+        @media print {
+            body { background: white; padding: 0; }
+        .history-card,.actions,.shift-box,.btn,.search-area, #edit_id,.upload-section { display: none!important; }
+        .main-card { box-shadow: none; width: 100%; border: none; }
+        .table-container { max-height: none; overflow: visible; }
+            table { font-size: 10px; border: 1px solid #000; }
+            th, td { border: 1px solid #ccc; }
+            input, select { border: none; appearance: none; -webkit-appearance: none; }
+            #result { color: black; background: white; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="main-card" id="printableArea">
+        <h2 style="color:var(--primary); margin:0 0 10px 0;">Worker Salary System</h2>
+        <div class="owner-name">Syed Afham Mehdi Naqvi Shah</div>
+
+        <input type="hidden" id="edit_id" value="">
+
+        <div style="display:grid; grid-template-columns: 1.2fr 1.5fr 1fr; gap:10px; margin-bottom:15px; background:#f8fafc; padding:10px; border-radius:8px; border: 1px solid #e2e8f0;">
+            <div>
+                <label>Emp Code</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="emp_code" placeholder="Code">
+                    <button class="btn" style="background:var(--dark); padding:5px 12px;" onclick="loadByCode()">LOAD</button>
+                </div>
+            </div>
+            <div class="upload-section">
+                <label>Select Excel File (.xlsx)</label>
+                <input type="file" id="upload_excel" accept=".xlsx" style="padding:4px; font-size:10px;" onchange="importFromExcel()">
+            </div>
+            <div><label>Department</label><input type="text" id="department"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div><label>Worker Name</label><input type="text" id="name"></div>
+            <div><label>Designation</label><input type="text" id="designation"></div>
+            <div><label>Weekly Off</label>
+                <select id="weekly_off" onchange="autoUpdateDays()">
+                    <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                </select>
+            </div>
+            <div><label>Month</label>
+                <select id="month" onchange="autoUpdateDays()">
+                    <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                    <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                    <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                    <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                </select>
+            </div>
+            <div><label>Year</label><input type="number" id="year" value="2026" onchange="autoUpdateDays()"></div>
+            <div><label>Basic Salary</label><input type="number" id="bs" placeholder="Enter Amount"></div>
+        </div>
+
+        <div class="shift-box">
+            <div style="display:flex; gap:10px; align-items:flex-end;">
+                <div style="flex:1"><label>Duty IN</label><input type="time" id="bulk_in" value="09:00"></div>
+                <div style="flex:1"><label>Duty OUT</label><input type="time" id="bulk_out" value="18:00"></div>
+                <button class="btn" style="background:var(--primary); height:35px;" onclick="applyBulkTime()">Auto-Fill Days</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="attendance-table">
+                <thead>
+                    <tr><th>Date & Day</th><th>Rest</th><th>IN</th><th>OUT</th><th>Hrs</th><th>OT</th></tr>
+                </thead>
+                <tbody id="attendance-body"></tbody>
+            </table>
+        </div>
+
+        <div class="actions">
+            <button class="btn" style="background:var(--success);" onclick="saveWorkerData()">Save Record</button>
+            <button class="btn" style="background:var(--warning); color: #000;" onclick="nextWorker()">Next Worker</button>
+            <button class="btn" style="background:var(--primary)" onclick="calculateFinal()">Calculate</button>
+            <button class="btn" style="background:#64748b" onclick="window.print()">Print Report</button>
+            <button class="btn" style="background:#ea580c" onclick="exportToExcel()">Export Excel</button>
+            <button class="btn" style="background:#8b5cf6" onclick="shareSalary()">Share</button>
+            <button class="btn" style="background:var(--danger)" onclick="clearAllHistory()">Reset DB</button>
+        </div>
+
+        <div id="result">Calculation details will appear here...</div>
+    </div>
+
+    <div class="history-card">
+        <h3 style="margin-top:0">Database History</h3>
+        <div class="search-area" style="display:flex; gap:5px;">
+            <input type="text" id="searchBox" placeholder="Name or Code..." style="flex:1">
+            <button class="btn" style="background:var(--primary)" onclick="loadHistory()">Search</button>
+        </div>
+        <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
+        <div id="history-list"></div>
+    </div>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('worker_db_v3')) || [];
+    const daysArr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    function loadByCode() {
+        const code = document.getElementById('emp_code').value.trim();
+        if(!code) return alert("Please enter Emp Code first");
+        const record = db.filter(w => w.code === code).reverse()[0];
+        if(record) {
+            document.getElementById('edit_id').value = record.id;
+            document.getElementById('name').value = record.name;
+            document.getElementById('emp_code').value = record.code;
+            document.getElementById('department').value = record.dept;
+            document.getElementById('designation').value = record.desig;
+            document.getElementById('bs').value = record.bs;
+            document.getElementById('month').value = record.month;
+            document.getElementById('year').value = record.year;
+            autoUpdateDays(record.attendance);
+            alert("Worker Loaded from Database!");
+        } else {
+            alert("Worker not found in Database!");
+        }
+    }
+
+    function autoUpdateDays(attendanceData = null) {
+        const m = Number(document.getElementById('month').value);
+        const y = Number(document.getElementById('year').value);
+        const weeklyOff = Number(document.getElementById('weekly_off').value);
+        const totalDays = new Date(y, m, 0).getDate();
+        const tbody = document.getElementById('attendance-body');
+        tbody.innerHTML = "";
+
+        for (let i = 1; i <= totalDays; i++) {
+            let dateObj = new Date(y, m-1, i);
+            let dayIndex = dateObj.getDay();
+            let dayName = daysArr[dayIndex];
+            let isOffDay = (dayIndex === weeklyOff);
+
+            let savedData = attendanceData? attendanceData.find(d => d.date === i) : null;
+            let inTime = savedData? savedData.in : '';
+            let outTime = savedData? savedData.out : '';
+            // FIX: Weekly Off ka tick hamesha laga rahega
+            let isRest = isOffDay || (savedData? savedData.rest : false);
+
+            tbody.innerHTML += `
+                <tr class="${isRest? 'rest-active' : ''}">
+                    <td><strong>${i}</strong> <small>${dayName}</small></td>
+                    <td><input type="checkbox" class="rest-chk" ${isRest? 'checked' : ''} onchange="updateRow(this)"></td>
+                    <td><input type="time" class="time-input in-t" value="${inTime}" oninput="updateRow(this)"></td>
+                    <td><input type="time" class="time-input out-t" value="${outTime}" oninput="updateRow(this)"></td>
+                    <td class="row-hrs">0</td><td class="row-ot">0</td>
+                </tr>`;
+
+            if(inTime && outTime) {
+                updateRow(tbody.lastElementChild.querySelector('.in-t'));
+            }
+        }
+    }
+
+    function updateRow(el) {
+        const row = el.closest('tr');
+        const isRest = row.querySelector('.rest-chk').checked;
+        const inT = row.querySelector('.in-t').value;
+        const outT = row.querySelector('.out-t').value;
+        row.className = isRest? 'rest-active' : '';
+
+        if (inT && outT) {
+            let start = new Date("1970-01-01 " + inT);
+            let end = new Date("1970-01-01 " + outT);
+            if (end < start) end.setDate(end.getDate() + 1);
+            let diff = (end - start) / 3600000;
+            row.querySelector('.row-hrs').innerText = diff.toFixed(1);
+            // FIX: Rest day par saare hours OT mein
+            let ot = isRest? diff : (diff > 9? diff - 9 : 0);
+            row.querySelector('.row-ot').innerText = ot.toFixed(1);
+        } else {
+            row.querySelector('.row-hrs').innerText = "0";
+            row.querySelector('.row-ot').innerText = "0";
+        }
+    }
+
+    function applyBulkTime() {
+        const inT = document.getElementById('bulk_in').value;
+        const outT = document.getElementById('bulk_out').value;
+        document.querySelectorAll('#attendance-body tr').forEach(row => {
+            if(!row.querySelector('.rest-chk').checked) {
+                row.querySelector('.in-t').value = inT;
+                row.querySelector('.out-t').value = outT;
+                updateRow(row.querySelector('.in-t'));
+            }
+        });
+    }
+
+    function getAttendanceData() {
+        const data = [];
+        document.querySelectorAll('#attendance-body tr').forEach((row, i) => {
+            data.push({
+                date: i + 1,
+                rest: row.querySelector('.rest-chk').checked,
+                in: row.querySelector('.in-t').value,
+                out: row.querySelector('.out-t').value,
+                hrs: row.querySelector('.row-hrs').innerText,
+                ot: row.querySelector('.row-ot').innerText
+            });
+        });
+        return data;
+    }
+
+    function calculateFinal() {
+        const name = document.getElementById('name').value || "Unnamed";
+        const code = document.getElementById('emp_code').value || "N/A";
+        const bs = parseFloat(document.getElementById('bs').value) || 0;
+        const takenLeaves = parseInt(prompt(`Total Leaves Taken by ${name}?`, "0")) || 0;
+        const totalMonthDays = new Date(document.getElementById('year').value, document.getElementById('month').value, 0).getDate();
+
+        let totalOT = 0;
+        let totalHrs = 0;
+        let presentDays = 0;
+        document.querySelectorAll('#attendance-body tr').forEach(row => {
+            totalOT += parseFloat(row.querySelector('.row-ot').innerText) || 0;
+            let hrs = parseFloat(row.querySelector('.row-hrs').innerText) || 0;
+            totalHrs += hrs;
+            if(hrs > 0) presentDays++;
+        });
+
+        const perDay = bs / totalMonthDays;
+        const deduction = takenLeaves * perDay;
+        const otPay = totalOT * (perDay / 9);
+        const net = Math.round(bs - deduction + otPay);
+
+        const summary = `Emp Code: ${code}\nWorker: ${name}\nBasic: Rs. ${bs}\nPresent Days: ${presentDays}\nTotal Hrs: ${totalHrs.toFixed(1)}\nLeaves Taken: ${takenLeaves}\nDeduction: Rs. ${Math.round(deduction)}\nOT Hrs: ${totalOT.toFixed(1)}\nOT Pay: Rs. ${Math.round(otPay)}\nNET PAYABLE: Rs. ${net}`;
+        document.getElementById('result').innerText = summary;
+        return { name, code, bs, net, summary, totalOT, totalHrs, presentDays, otPay };
+    }
+
+    function saveWorkerData() {
+        const calc = calculateFinal();
+        const editId = document.getElementById('edit_id').value;
+        const record = {
+            id: editId? Number(editId) : Date.now(),
+            name: calc.name,
+            code: calc.code,
+            dept: document.getElementById('department').value,
+            desig: document.getElementById('designation').value,
+            bs: calc.bs,
+            net: calc.net,
+            month: document.getElementById('month').value,
+            year: document.getElementById('year').value,
+            date: new Date().toLocaleDateString(),
+            attendance: getAttendanceData()
+        };
+        if(editId) {
+            const index = db.findIndex(i => i.id == editId);
+            db[index] = record;
+            document.getElementById('edit_id').value = "";
+        } else { db.push(record); }
+        localStorage.setItem('worker_db_v3', JSON.stringify(db));
+        loadHistory();
+        alert("Record + Attendance Saved!");
+    }
+
+    function nextWorker() {
+        if(confirm("Clear current form for Next Worker?")) {
+            document.getElementById('name').value = "";
+            document.getElementById('emp_code').value = "";
+            document.getElementById('bs').value = "";
+            document.getElementById('department').value = "";
+            document.getElementById('designation').value = "";
+            document.getElementById('edit_id').value = "";
+            document.getElementById('result').innerText = "Calculation details will appear here...";
+            autoUpdateDays();
+        }
+    }
+
+    // 100% WORKING EXCEL IMPORT - FIXED FOR WEEKLY OFF
+    function importFromExcel() {
+        const fileInput = document.getElementById('upload_excel');
+        if (!fileInput.files[0]) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1, defval: '', raw: false});
+
+                let attendanceData = [];
+                let headerFound = false;
+                const weeklyOff = Number(document.getElementById('weekly_off').value);
+
+                jsonData.forEach((row, idx) => {
+                    if(!row || row.length === 0) return;
+
+                    let col0 = row[0]? row[0].toString().trim() : '';
+                    let col1 = row[1]? row[1].toString().trim() : '';
+
+                    // Basic Info
+                    if(col0.toLowerCase().includes('emp') && col0.toLowerCase().includes('code')) document.getElementById('emp_code').value = col1;
+                    if(col0.toLowerCase() === 'name') document.getElementById('name').value = col1;
+                    if(col0.toLowerCase().includes('department')) document.getElementById('department').value = col1;
+                    if(col0.toLowerCase().includes('designation')) document.getElementById('designation').value = col1;
+                    if(col0.toLowerCase().includes('basic') && col0.toLowerCase().includes('salary')) document.getElementById('bs').value = col1;
+
+                    // Attendance Header Detect
+                    if(col0.toLowerCase() === 'date' || col0.toLowerCase().includes('date')) {
+                        if(row[2] && row[2].toString().toUpperCase().includes('IN')) {
+                            headerFound = true;
+                            return;
+                        }
+                    }
+
+                    // Attendance Data
+                    if(headerFound) {
+                        let dateNum = parseInt(row[0]);
+                        if(!isNaN(dateNum) && dateNum > 0 && dateNum <= 31) {
+                            let inTime = row[2]? row[2].toString().trim() : '';
+                            let outTime = row[3]? row[3].toString().trim() : '';
+
+                            function fixTime(t) {
+                                if(!t || t === 'REST' || t === '-') return '';
+                                t = t.toString().trim();
+                                if(t.includes('T') && t.includes(':')) {
+                                    let timePart = t.split('T')[1].split('.')[0];
+                                    return timePart.substring(0,5);
+                                }
+                                if(!isNaN(t) && t.includes('.') && parseFloat(t) < 1) {
+                                    let totalMinutes = Math.round(parseFloat(t) * 24 * 60);
+                                    let h = Math.floor(totalMinutes / 60).toString().padStart(2,'0');
+                                    let m = (totalMinutes % 60).toString().padStart(2,'0');
+                                    return h + ':' + m;
+                                }
+                                if(t.includes('.') &&!t.includes(':')) {
+                                    let parts = t.split('.');
+                                    let h = parts[0].padStart(2,'0');
+                                    let m = Math.round(parseFloat('0.'+parts[1]) * 60).toString().padStart(2,'0');
+                                    return h + ':' + m;
+                                }
+                                if(t.includes(':')) {
+                                    let parts = t.split(':');
+                                    return parts[0].padStart(2,'0') + ':' + parts[1].padStart(2,'0').substring(0,2);
+                                }
+                                if(!isNaN(t)) return t.padStart(2,'0') + ':00';
+                                return '';
+                            }
+
+                            // FIX: Weekly Off ka tick hamesha laga rahega
+                            let m = Number(document.getElementById('month').value);
+                            let y = Number(document.getElementById('year').value);
+                            let dateObj = new Date(y, m-1, dateNum);
+                            let dayIndex = dateObj.getDay();
+                            let isWeeklyOffDay = (dayIndex === weeklyOff);
+
+                            let isRest = isWeeklyOffDay ||
+                                        (row[4] && row[4].toString().toUpperCase() === 'REST') ||
+                                        (row[5] && row[5].toString().toUpperCase() === 'REST');
+
+                            attendanceData.push({
+                                date: dateNum,
+                                in: fixTime(inTime),
+                                out: fixTime(outTime),
+                                rest: isRest
+                            });
+                        }
+                    }
+                });
+
+                autoUpdateDays(attendanceData.length > 0? attendanceData : null);
+                alert("Excel Loaded Successfully!\nBasic Data + " + attendanceData.length + " Days Attendance Imported.\nWeekly Off ka tick laga rahega, OT auto calculate hoga.");
+                fileInput.value = '';
+            } catch(err) {
+                alert("Excel Load Error: " + err.message);
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    // FIXED: EXPORT WITH FULL DATA
+    function exportToExcel() {
+        const name = document.getElementById('name').value || 'Worker';
+        const code = document.getElementById('emp_code').value || 'N/A';
+        const dept = document.getElementById('department').value || '';
+        const desig = document.getElementById('designation').value || '';
+        const bs = document.getElementById('bs').value || '0';
+        const month = document.getElementById('month').options[document.getElementById('month').selectedIndex].text;
+        const year = document.getElementById('year').value;
+
+        let totalOT = 0;
+        let totalHrs = 0;
+        const attendanceRows = [];
+
+        document.querySelectorAll('#attendance-body tr').forEach(row => {
+            let cells = row.querySelectorAll('td');
+            let dateDay = cells[0].innerText.replace('\n', ' ');
+            let rest = row.querySelector('.rest-chk').checked? 'YES' : '';
+            let inTime = cells[2].querySelector('input').value;
+            let outTime = cells[3].querySelector('input').value;
+            let hrs = cells[4].innerText;
+            let ot = cells[5].innerText;
+            totalOT += parseFloat(ot) || 0;
+            totalHrs += parseFloat(hrs) || 0;
+            attendanceRows.push([dateDay, rest, inTime, outTime, hrs, ot]);
+        });
+
+        const perDay = bs / new Date(year, document.getElementById('month').value, 0).getDate();
+        const otPay = Math.round(totalOT * (perDay / 9));
+
+        const data = [
+            ['EMPLOYEE SALARY REPORT'],
+            ['Emp Code', code],
+            ['Name', name],
+            ['Department', dept],
+            ['Designation', desig],
+            ['Month', month + ' ' + year],
+            ['Basic Salary', bs],
+            [''],
+            ['ATTENDANCE SHEET'],
+            ['Date & Day', 'Rest', 'IN', 'OUT', 'Hrs', 'OT'],
+           ...attendanceRows,
+            [''],
+            ['SUMMARY'],
+            ['Total Hours', totalHrs.toFixed(1)],
+            ['Total OT Hours', totalOT.toFixed(1)],
+            ['OT Pay', otPay],
+            [''],
+            ['Generated on', new Date().toLocaleString()]
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Salary Sheet");
+        XLSX.writeFile(wb, `${name}_${month}_${year}_Full_Salary.xlsx`);
+    }
+
+    function loadHistory() {
+        const query = document.getElementById('searchBox').value.toLowerCase();
+        const list = document.getElementById('history-list');
+        list.innerHTML = db.filter(w => w.name.toLowerCase().includes(query) || w.code.toLowerCase().includes(query))
+     .reverse().map(w => `
+            <div class="hist-item">
+                <small style="color:var(--primary)">CODE: ${w.code || 'N/A'}</small><br>
+                <b>${w.name}</b> <br>
+                <span style="font-size:12px">Net: <b>Rs. ${w.net}</b> | ${w.date}</span>
+                <div class="hist-actions">
+                    <button class="btn" onclick="editRecord(${w.id})" style="background:var(--warning); flex:1">LOAD</button>
+                    <button class="btn" onclick="deleteRecord(${w.id})" style="background:var(--danger); flex:1">Delete</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function editRecord(id) {
+        const r = db.find(item => item.id == id);
+        if(r) {
+            document.getElementById('edit_id').value = r.id;
+            document.getElementById('name').value = r.name;
+            document.getElementById('emp_code').value = r.code;
+            document.getElementById('department').value = r.dept;
+            document.getElementById('designation').value = r.desig;
+            document.getElementById('bs').value = r.bs;
+            document.getElementById('month').value = r.month;
+            document.getElementById('year').value = r.year;
+            autoUpdateDays(r.attendance);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function deleteRecord(id) {
+        if(confirm("Delete record?")) {
+            db = db.filter(i => i.id!== id);
+            localStorage.setItem('worker_db_v3', JSON.stringify(db));
+            loadHistory();
+        }
+    }
+
+    function clearAllHistory() { if(confirm("Wipe all data?")) { db = []; localStorage.clear(); loadHistory(); } }
+
+    async function shareSalary() {
+        const text = document.getElementById('result').innerText;
+        if (navigator.share) await navigator.share({ title: 'Salary', text: text });
+        else alert("Summary copied!");
+    }
+
+    window.onload = () => { autoUpdateDays(); loadHistory(); };
+</script>
+
+</body>
+</html>
+           
